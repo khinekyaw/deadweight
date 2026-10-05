@@ -1,0 +1,14 @@
+# systemd unit: copy to /etc/systemd/system/, then: systemctl enable --now deadweight
+[Unit]
+Description=Deadweight game server
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/deadweight
+ExecStart=/usr/bin/node server.js
+Environment=PORT=8080
+Restart=always
+User=www-data
+
+[Install]
+WantedBy=multi-user.target

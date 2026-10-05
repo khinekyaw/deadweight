@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Deadweight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed WebGL canvas; HUD pinned to the four corners; one centered briefing card when not playing. */
+:root{
+  --bg:#101318;          /* gunmetal night */
+  --panel:#171b21f0;
+  --fg:#ddd6c6;          /* bone */
+  --dim:#8d9089;
+  --line:#2b3038;
+  --brass:#d9a441;       /* cartridge brass */
+  --blood:#c4412e;
+  --f-display:"Big Shoulders Stencil Display","Arial Narrow",Impact,sans-serif;
+  --f-body:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);overflow:hidden;user-select:none}
+canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;inset:0;pointer-events:none;font-family:var(--f-mono);text-shadow:0 1px 2px #000a}
+.hud .corner{position:absolute;display:flex;flex-direction:column;gap:4px}
+.hud #stance{color:var(--brass)}
+.scope{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 37vmin,#000 calc(37vmin + 1px));}
+.scope i{position:absolute;left:50%;top:50%;background:#000}
+.scope .sh{width:74vmin;height:1.5px;transform:translate(-50%,-50%)}
+.scope .sv{width:1.5px;height:74vmin;transform:translate(-50%,-50%)}
+.scope .sd{width:5px;height:5px;border-radius:50%;background:#b8261c;transform:translate(-50%,-50%)}
+.hitmark{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%) rotate(45deg);opacity:0;border-left:2px solid #fff;border-right:2px solid #fff;clip-path:polygon(0 0,35% 0,35% 100%,0 100%,0 0,65% 0,100% 0,100% 100%,65% 100%,65% 0)}
+.hitmark.on{animation:hm .28s ease-out}
+.hitmark.head{border-color:var(--blood)}
+@keyframes hm{0%{opacity:.9}100%{opacity:0}}
+.board{position:absolute;left:50%;top:18%;transform:translateX(-50%);background:#0b0d10e0;border:1px solid var(--line);padding:14px 18px;min-width:min(420px,90vw)}
+.board table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.board th{text-align:left;font-weight:600;color:var(--dim);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding-bottom:6px}
+.board td{padding:4px 0;border-top:1px solid var(--line)}
+.board td+td,.board th+th{text-align:right;width:44px}
+#netchip{margin-top:4px}
+input[type=text]{font-family:var(--f-mono);font-size:13px;background:#0d1014;color:var(--fg);border:1px solid #3b414b;padding:7px 9px;width:140px;box-sizing:border-box}
+input[type=text]:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+button.small-btn{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:transparent;color:var(--fg);border:1px solid #3b414b;padding:7px 12px;cursor:pointer}
+button.small-btn:hover{border-color:var(--brass);color:var(--brass)}
+button.small-btn:disabled{opacity:.4;cursor:default}
+button.small-btn:focus-visible{outline:2px solid var(--brass)}
+.netstatus{font-size:12px;color:var(--dim)}
+.hud .bl{left:28px;bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+.hud .br{right:28px;bottom:calc(24px + env(safe-area-inset-bottom,0px));align-items:flex-end}
+.hud .tl{left:28px;top:calc(22px + env(safe-area-inset-top,0px))}
+.hud .tr{right:28px;top:calc(22px + env(safe-area-inset-top,0px));align-items:flex-end}
+.big{font-family:var(--f-display);font-weight:900;font-size:44px;line-height:.9;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.small{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.hpbar{width:150px;height:3px;background:#ffffff1c}
+.hpbar i{display:block;height:100%;width:100%;background:var(--fg);transition:width .15s}
+.hpbar.low i{background:var(--blood)}
+.ammo .res{font-size:18px;color:var(--dim);font-family:var(--f-mono);font-weight:400}
+.ammo.empty .big{color:var(--blood)}
+.score{font-size:12px;letter-spacing:.12em;color:var(--fg)}
+.score b{color:var(--brass);font-weight:600}
+.feed{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.feed div{font-size:12px;background:#0008;padding:4px 8px;border-left:2px solid var(--brass);animation:fade 6s forwards}
+.feed div.bad{border-left-color:var(--blood)}
+@keyframes fade{0%,80%{opacity:1}100%{opacity:0}}
+.msg{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);font-size:13px;letter-spacing:.2em;text-transform:uppercase;text-align:center;white-space:nowrap}
+.breath{position:absolute;left:50%;bottom:calc(16% + 0px);transform:translateX(-50%);width:120px;height:2px;background:#ffffff18;opacity:0;transition:opacity .3s}
+.breath i{display:block;height:100%;background:var(--fg)}
+.breath.on{opacity:.8}
+.vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,#7a0d05 120%);opacity:0;transition:opacity .25s}
+.dmgdir{position:absolute;left:50%;top:50%;width:0;height:0}
+.dmgdir i{position:absolute;left:-60px;top:-190px;width:120px;height:18px;border-top:3px solid var(--blood);border-radius:50%/100% 100% 0 0;opacity:0;transform-origin:60px 190px}
+.lowhp .vignette{opacity:.55}
+
+/* ---------- briefing overlay ---------- */
+.overlay{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 40%,#10131899,#0a0c0fee);padding-inline:16px;z-index:5}
+.card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);padding:26px 28px 18px;display:grid;gap:16px;box-sizing:border-box;max-height:calc(100% - 32px);overflow:auto}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.head h1{font-size:clamp(46px,9vw,72px)}
+.namefield{display:grid;gap:4px}
+.namefield input{width:150px}
+.rooms{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.roomsbar{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.rooms h2{margin:0;font-family:var(--f-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--brass);font-weight:600}
+.roomlist{list-style:none;margin:0;padding:0;display:grid;max-height:216px;overflow:auto;border:1px solid var(--line)}
+.roomlist li{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:8px 10px;border-top:1px solid var(--line)}
+.roomlist li:first-child{border-top:0}
+.roomlist li.mine{background:#d9a44114}
+.roomlist .rname{font-family:var(--f-mono);font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roomlist .rcount{font-family:var(--f-mono);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.roomlist .rcount.live{color:var(--fg)}
+.roomlist .empty{grid-template-columns:1fr;color:var(--dim);font-size:13px}
+.create{display:flex;gap:8px}
+.create input{flex:1;width:auto;min-width:0}
+.playrow{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.fold{border-top:1px solid var(--line);padding-top:10px}
+.fold summary{cursor:pointer;font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.fold summary:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.foldbody{display:grid;gap:10px;padding-top:12px}
+.keys.foldbody{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 16px;font-size:12px;color:var(--dim)}
+.credits{font-size:10.5px;color:var(--dim);opacity:.75}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--brass)}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(52px,11vw,92px);line-height:.82;margin:0;letter-spacing:.01em;text-wrap:balance}
+.lede{margin:0;font-size:16px;line-height:1.5;color:var(--fg);max-width:60ch}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 20px;font-size:13px;color:var(--dim)}
+.keys div{display:flex;gap:10px;align-items:baseline}
+kbd{font-family:var(--f-mono);font-size:11px;color:var(--fg);border:1px solid #3b414b;border-bottom-width:2px;padding:1px 6px;min-width:14px;text-align:center;background:#0d1014}
+.row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+label{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+input[type=range]{accent-color:var(--brass);width:160px}
+select{font-family:var(--f-mono);font-size:12px;background:#0d1014;color:var(--fg);border:1px solid #3b414b;padding:4px 8px}
+select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+input[type=checkbox]{accent-color:var(--brass);width:16px;height:16px;margin:0}
+.row label[for=rmbtoggle]{cursor:pointer}
+button#go{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.06em;background:var(--brass);color:#16120a;border:0;padding:10px 26px;cursor:pointer}
+button#go:disabled{background:#3a3d42;color:#8d9089;cursor:progress}
+button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+.load{flex:1;min-width:140px;display:grid;gap:6px}
+.load .bar{height:2px;background:#ffffff14}
+.load .bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
+.credits{font-size:11px;color:var(--dim);line-height:1.5;border-top:1px solid var(--line);padding-top:12px}
+.credits a{color:var(--dim)}
+.touchnote{font-size:13px;color:var(--blood)}
+@media (prefers-reduced-motion:reduce){.feed div{animation:none}}
+@media (max-width:520px){.card{padding:22px 20px}.big{font-size:34px}}
+</style>
+
+<canvas id="view"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="vignette" id="vig"></div>
+  <div class="dmgdir" id="dmgdir"></div>
+  <div class="corner tl"><div class="score" id="score">K <b>0</b> &nbsp; D <b>0</b></div><div class="small" id="netchip">Offline · bot</div></div>
+  <div class="corner tr"><div class="feed" id="feed"></div></div>
+  <div class="corner bl">
+    <div class="small" id="stance">Standing</div>
+    <div class="small">Health</div>
+    <div class="big" id="hp">100</div>
+    <div class="hpbar" id="hpbar"><i></i></div>
+  </div>
+  <div class="corner br ammo" id="ammo">
+    <div class="small" id="mode">7.62×39 · Auto</div>
+    <div><span class="big" id="mag">30</span> <span class="res" id="res">/ 120</span></div>
+  </div>
+  <div class="breath" id="breath"><i></i></div>
+  <div class="scope" id="scope" hidden><i class="sh"></i><i class="sv"></i><i class="sd"></i></div>
+  <div class="hitmark" id="hitmark"></div>
+  <div class="board" id="board" hidden><table><thead><tr><th>Player</th><th>K</th><th>D</th></tr></thead><tbody id="boardrows"></tbody></table></div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <div class="head">
+      <h1>Deadweight</h1>
+      <div class="namefield"><label for="callsign">Callsign</label><input type="text" id="callsign" maxlength="18" autocomplete="off" spellcheck="false"></div>
+    </div>
+
+    <section class="rooms" aria-labelledby="roomshead">
+      <div class="roomsbar"><h2 id="roomshead">Rooms</h2><span class="netstatus" id="netstatus">Connecting…</span></div>
+      <ul class="roomlist" id="roomlist"></ul>
+      <form class="create" id="createform" autocomplete="off">
+        <input type="text" id="roomcode" maxlength="24" placeholder="new-room-name" aria-label="New room name" spellcheck="false">
+        <button type="submit" class="small-btn" id="createbtn">Create</button>
+      </form>
+    </section>
+
+    <div class="playrow">
+      <button id="go" disabled>Loading</button>
+      <div class="load" id="load"><span class="small" id="loadtxt">Loading models</span><div class="bar"><i id="loadbar"></i></div></div>
+      <span class="small" id="playhint"></span>
+    </div>
+    <div class="touchnote" id="touchnote" hidden>Needs a keyboard and mouse.</div>
+
+    <details class="fold">
+      <summary>Settings</summary>
+      <div class="foldbody">
+        <div class="row"><label for="sens">Mouse sensitivity</label><input type="range" id="sens" min="0.4" max="3" step="0.05" value="1"><span class="small" id="sensv">1.00</span></div>
+        <div class="row"><label for="quality">Graphics</label><select id="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+        <div class="row"><input type="checkbox" id="rmbtoggle"><label for="rmbtoggle">Right-click toggles aim (touchpad)</label></div>
+      </div>
+    </details>
+    <details class="fold">
+      <summary>Controls</summary>
+      <div class="foldbody keys">
+        <div><kbd>WASD</kbd> Move</div>
+        <div><kbd>LMB</kbd>/<kbd>F</kbd> Fire</div>
+        <div><kbd>RMB</kbd>/<kbd>X</kbd> Aim</div>
+        <div><kbd>Shift</kbd> Sprint · hold breath</div>
+        <div><kbd>Space</kbd> Jump</div>
+        <div><kbd>Q</kbd><kbd>E</kbd> Lean</div>
+        <div><kbd>C</kbd> Crouch · hold: prone</div>
+        <div><kbd>R</kbd> Reload</div>
+        <div><kbd>1</kbd>–<kbd>5</kbd> Weapons</div>
+        <div><kbd>B</kbd> Fire mode</div>
+        <div><kbd>Tab</kbd> Scores</div>
+        <div><kbd>V</kbd> 3rd person</div>
+      </div>
+    </details>
+    <div class="credits">AK-47 rig: <a href="https://skfb.ly/6UEL9" target="_blank" rel="noopener">“Ak47” by kursat_sokmen</a>, CC BY 4.0 · Soldier: Mixamo via three.js examples</div>
+  </div>
+</div>
+
+<script>window.DEADWEIGHT_SELFHOST = true;</script>
+<script type="module" src="game.js?v=b68646387c2e"></script>
+
+</body></html>

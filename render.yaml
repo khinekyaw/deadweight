@@ -1,0 +1,9 @@
+# Render Blueprint: New > Blueprint, pick this repo. Free web service, Node runtime.
+services:
+  - type: web
+    name: deadweight
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz

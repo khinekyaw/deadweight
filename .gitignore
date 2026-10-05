@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# build intermediates (build.mjs)
+.game-entry.js
+.keep-*/
+
+# logs and env
+*.log
+npm-debug.log*
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
