@@ -74,6 +74,17 @@ button.small-btn:focus-visible{outline:2px solid var(--brass)}
 .dmgdir{position:absolute;left:50%;top:50%;width:0;height:0}
 .dmgdir i{position:absolute;left:-60px;top:-190px;width:120px;height:18px;border-top:3px solid var(--blood);border-radius:50%/100% 100% 0 0;opacity:0;transform-origin:60px 190px}
 .lowhp .vignette{opacity:.55}
+/* ---------- bodycam mode: camera stamp, HUD that only shows when something changes ---------- */
+.camstamp{display:none;position:absolute;right:24px;top:calc(18px + env(safe-area-inset-top,0px));text-align:right;font-family:var(--f-mono);font-size:12px;line-height:1.45;letter-spacing:.06em;color:#f2efe6;text-shadow:0 0 2px #000,0 1px 2px #000;opacity:.88;font-variant-numeric:tabular-nums}
+.camstamp .rec{color:#e0402c;animation:rec 1s steps(1) infinite}
+@keyframes rec{50%{opacity:0}}
+.camvig{display:none;position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,#000a 115%)}
+.hud.bodycam .camstamp{display:block}
+.hud.bodycam.lofi .camvig{display:block}
+.hud.bodycam .tr{top:calc(66px + env(safe-area-inset-top,0px))}
+.hud.bodycam .bl,.hud.bodycam .br{opacity:0;transition:opacity .8s}
+.hud.bodycam .bl.show,.hud.bodycam .br.show,.hud.bodycam.lowhp .bl,.hud.bodycam.peek .bl,.hud.bodycam.peek .br{opacity:1;transition:opacity .12s}
+@media (prefers-reduced-motion:reduce){.camstamp .rec{animation:none}}
 
 /* ---------- briefing overlay ---------- */
 .overlay{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 40%,#10131899,#0a0c0fee);padding-inline:16px;z-index:5}
@@ -94,6 +105,11 @@ button.small-btn:focus-visible{outline:2px solid var(--brass)}
 .roomlist .rcount.live{color:var(--fg)}
 .roomlist .empty{grid-template-columns:1fr;color:var(--dim);font-size:13px}
 .create{display:flex;gap:8px}
+.botrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper .small-btn{width:32px;padding:5px 0;font-size:14px;line-height:1}
+.stepper output{font-family:var(--f-mono);font-size:14px;min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
+.bothint{opacity:.75;letter-spacing:.08em;text-transform:none}
 .create input{flex:1;width:auto;min-width:0}
 .playrow{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .fold{border-top:1px solid var(--line);padding-top:10px}
@@ -114,7 +130,7 @@ input[type=range]{accent-color:var(--brass);width:160px}
 select{font-family:var(--f-mono);font-size:12px;background:#0d1014;color:var(--fg);border:1px solid #3b414b;padding:4px 8px}
 select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 input[type=checkbox]{accent-color:var(--brass);width:16px;height:16px;margin:0}
-.row label[for=rmbtoggle]{cursor:pointer}
+.row label[for=rmbtoggle],.row label[for=bodycam]{cursor:pointer}
 button#go{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.06em;background:var(--brass);color:#16120a;border:0;padding:10px 26px;cursor:pointer}
 button#go:disabled{background:#3a3d42;color:#8d9089;cursor:progress}
 button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
@@ -131,7 +147,9 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
 <canvas id="view"></canvas>
 
 <div class="hud" id="hud" hidden>
+  <div class="camvig"></div>
   <div class="vignette" id="vig"></div>
+  <div class="camstamp" aria-hidden="true"><div><span class="rec">●</span> REC <span id="camclock"></span></div><div id="camid"></div></div>
   <div class="dmgdir" id="dmgdir"></div>
   <div class="corner tl"><div class="score" id="score">K <b>0</b> &nbsp; D <b>0</b></div><div class="small" id="netchip">Offline · bot</div></div>
   <div class="corner tr"><div class="feed" id="feed"></div></div>
@@ -166,6 +184,15 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <input type="text" id="roomcode" maxlength="24" placeholder="new-room-name" aria-label="New room name" spellcheck="false">
         <button type="submit" class="small-btn" id="createbtn">Create</button>
       </form>
+      <div class="botrow">
+        <span class="small" id="botlabel">Your bots</span>
+        <div class="stepper" role="group" aria-labelledby="botlabel">
+          <button type="button" class="small-btn" id="botminus" aria-label="Remove a bot">−</button>
+          <output id="botcount" aria-live="polite">1</output>
+          <button type="button" class="small-btn" id="botplus" aria-label="Add a bot">+</button>
+        </div>
+        <span class="small bothint">Free-for-all, they join your room with you</span>
+      </div>
     </section>
 
     <div class="playrow">
@@ -181,6 +208,7 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <div class="row"><label for="sens">Mouse sensitivity</label><input type="range" id="sens" min="0.4" max="3" step="0.05" value="1"><span class="small" id="sensv">1.00</span></div>
         <div class="row"><label for="quality">Graphics</label><select id="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
         <div class="row"><input type="checkbox" id="rmbtoggle"><label for="rmbtoggle">Right-click toggles aim (touchpad)</label></div>
+        <div class="row"><input type="checkbox" id="bodycam"><label for="bodycam">Bodycam: lens, motion blur, weighted aim</label></div>
       </div>
     </details>
     <details class="fold">
@@ -198,13 +226,14 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <div><kbd>B</kbd> Fire mode</div>
         <div><kbd>Tab</kbd> Scores</div>
         <div><kbd>V</kbd> 3rd person</div>
+        <div><kbd>−</kbd><kbd>=</kbd> Remove · add bot</div>
       </div>
     </details>
-    <div class="credits">AK-47 rig: <a href="https://skfb.ly/6UEL9" target="_blank" rel="noopener">“Ak47” by kursat_sokmen</a>, CC BY 4.0 · Soldier: Mixamo via three.js examples</div>
+    <div class="credits">AK-47 rig: <a href="https://skfb.ly/6UEL9" target="_blank" rel="noopener">“Ak47” by kursat_sokmen</a>, CC BY 4.0 · Soldier: <a href="https://sketchfab.com/3d-models/soldier-mixamo-379f325184c743f68a07774269eb5c56" target="_blank" rel="noopener">“Soldier (Mixamo)” by Tsaphnat Tsaphnat Mbuyi</a>, CC BY 4.0, on the Mixamo rig and animations from the three.js examples</div>
   </div>
 </div>
 
 <script>window.DEADWEIGHT_SELFHOST = true;</script>
-<script type="module" src="game.js?v=b68646387c2e"></script>
+<script type="module" src="game.js?v=285fb8da4b76"></script>
 
 </body></html>

@@ -12,12 +12,12 @@ const { WebSocketServer } = require('ws');
 const PORT = +process.env.PORT || 8080;
 const PUBLIC = path.join(__dirname, 'public');
 const MAX_MSG = 4096;                 // bytes per presence object / event payload
-const RATE = { perSec: 40, burst: 80 };  // messages per client
+const RATE = { perSec: 60, burst: 120 };  // messages per client (a player plus the bots they run)
 const TOPICS = new Set(['shot', 'hit', 'death']);
 const NAME_RE = /^[a-z0-9][a-z0-9_.-]{0,47}$/;
 const MAX_PER_ROOM = +process.env.MAX_PER_ROOM || 16;
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.css': 'text/css', '.wasm': 'application/wasm', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.css': 'text/css', '.wasm': 'application/wasm', '.ico': 'image/x-icon', '.m4a': 'audio/mp4', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
 
 const server = http.createServer((req, res) => {
   let url = decodeURIComponent((req.url || '/').split('?')[0]);

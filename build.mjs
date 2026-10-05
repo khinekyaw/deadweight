@@ -9,7 +9,7 @@ const html = fs.readFileSync(srcHtml, 'utf8');
 const mod = html.match(/<script type="module">([\s\S]*?)<\/script>/);
 if (!mod) throw new Error('module script not found');
 // keep models/textures if they only exist in public/ (standalone package)
-const keep = {}; for (const d of ['models', 'textures']) if (!fs.existsSync(path.join(root, d)) && fs.existsSync(path.join(out, d))) { keep[d] = path.join(here, '.keep-' + d); fs.renameSync(path.join(out, d), keep[d]); }
+const keep = {}; for (const d of ['models', 'textures', 'audio']) if (!fs.existsSync(path.join(root, d)) && fs.existsSync(path.join(out, d))) { keep[d] = path.join(here, '.keep-' + d); fs.renameSync(path.join(out, d), keep[d]); }
 fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true });
 const entry = path.join(here, '.game-entry.js'); fs.writeFileSync(entry, mod[1]);
 await build({
@@ -26,5 +26,5 @@ const stamp = crypto.createHash('sha256').update(fs.readFileSync(path.join(out, 
 let page = html.replace(/<script type="importmap">[\s\S]*?<\/script>\s*/, '').replace(mod[0], `<script>window.DEADWEIGHT_SELFHOST = true;</script>\n<script type="module" src="game.js?v=${stamp}"></script>`);
 page = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>\n' + page + '\n</body></html>\n';
 fs.writeFileSync(path.join(out, 'index.html'), page);
-for (const d of ['models', 'textures']) { if (keep[d]) fs.renameSync(keep[d], path.join(out, d)); else fs.cpSync(path.join(root, d), path.join(out, d), { recursive: true }); }
+for (const d of ['models', 'textures', 'audio']) { if (keep[d]) fs.renameSync(keep[d], path.join(out, d)); else fs.cpSync(path.join(root, d), path.join(out, d), { recursive: true }); }
 console.log('built', out, '· game.js?v=' + stamp);

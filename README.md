@@ -15,8 +15,11 @@ PORT=3000 npm start       # another port
 ```
 
 Open the address in a browser. Everyone on the same server who types the same **Room**
-code (default `public`) plays together. When nobody else is in your room, a bot plays
-against you.
+code (default `public`) plays together. Each player can bring up to 8 bots (**Your bots**
+on the start screen, or `-` / `=` in game): your browser runs them, they fight everyone
+(free-for-all) and the rest of the room sees them. They leave when you do.
+
+To rebuild `public/` after editing `source-index.html`: `npm install && npm run build`.
 
 ### Docker
 
@@ -58,6 +61,9 @@ public.
 ## Credits
 
 - "Ak47" rig by kursat_sokmen, CC BY 4.0 (https://skfb.ly/6UEL9), textures recoloured.
-- Soldier: three.js example model, character and animations from Mixamo.
+- Soldier: "Soldier (Mixamo)" by Tsaphnat Tsaphnat Mbuyi, CC BY 4.0
+  (https://sketchfab.com/3d-models/soldier-mixamo-379f325184c743f68a07774269eb5c56); skinned at load onto the
+  rig and animations of the three.js example soldier (Mixamo).
+- Desert ambience: supplied by the project owner.
 - Other weapons, the map and its textures: made for this game.
 - three.js (MIT), Rapier (Apache 2.0), ws (MIT).
