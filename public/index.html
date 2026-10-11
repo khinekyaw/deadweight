@@ -80,6 +80,10 @@ button.small-btn:focus-visible{outline:2px solid var(--brass)}
 @keyframes rec{50%{opacity:0}}
 .camvig{display:none;position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,#000a 115%)}
 .hud.bodycam .camstamp{display:block}
+.voicebox{position:absolute;left:28px;bottom:calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:3px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.voicebox .tx{color:var(--dim)}
+.voicebox .tx.on{color:#e0402c}
+.voicebox .talk{color:var(--fg);background:#0007;padding:2px 6px;border-left:2px solid var(--brass);text-transform:none;letter-spacing:.04em}
 .hud.bodycam.lofi .camvig{display:block}
 .hud.bodycam .tr{top:calc(66px + env(safe-area-inset-top,0px))}
 .hud.bodycam .bl,.hud.bodycam .br{opacity:0;transition:opacity .8s}
@@ -130,7 +134,8 @@ input[type=range]{accent-color:var(--brass);width:160px}
 select{font-family:var(--f-mono);font-size:12px;background:#0d1014;color:var(--fg);border:1px solid #3b414b;padding:4px 8px}
 select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 input[type=checkbox]{accent-color:var(--brass);width:16px;height:16px;margin:0}
-.row label[for=rmbtoggle],.row label[for=bodycam]{cursor:pointer}
+.row label[for=rmbtoggle],.row label[for=bodycam],.row label[for=voiceon]{cursor:pointer}
+input[type=range]#voicevol{width:110px}
 button#go{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.06em;background:var(--brass);color:#16120a;border:0;padding:10px 26px;cursor:pointer}
 button#go:disabled{background:#3a3d42;color:#8d9089;cursor:progress}
 button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
@@ -166,6 +171,7 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
   <div class="breath" id="breath"><i></i></div>
   <div class="scope" id="scope" hidden><i class="sh"></i><i class="sv"></i><i class="sd"></i></div>
   <div class="hitmark" id="hitmark"></div>
+  <div class="voicebox" id="voicebox" aria-live="polite"></div>
   <div class="board" id="board" hidden><table><thead><tr><th>Player</th><th>K</th><th>D</th></tr></thead><tbody id="boardrows"></tbody></table></div>
   <div class="msg" id="msg"></div>
 </div>
@@ -209,6 +215,8 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <div class="row"><label for="quality">Graphics</label><select id="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
         <div class="row"><input type="checkbox" id="rmbtoggle"><label for="rmbtoggle">Right-click toggles aim (touchpad)</label></div>
         <div class="row"><input type="checkbox" id="bodycam"><label for="bodycam">Bodycam: lens, motion blur, weighted aim</label></div>
+        <div class="row"><input type="checkbox" id="voiceon"><label for="voiceon" id="voicelabel">Voice chat: hold T to talk</label></div>
+        <div class="row"><label for="voicemode">Voices</label><select id="voicemode"><option value="proximity">Proximity (3D)</option><option value="radio">Radio (whole room)</option></select><label for="voicevol">Volume</label><input type="range" id="voicevol" min="0" max="2" step="0.05" value="1"></div>
       </div>
     </details>
     <details class="fold">
@@ -227,6 +235,7 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <div><kbd>Tab</kbd> Scores</div>
         <div><kbd>V</kbd> 3rd person</div>
         <div><kbd>−</kbd><kbd>=</kbd> Remove · add bot</div>
+        <div><kbd>T</kbd> Push to talk</div>
       </div>
     </details>
     <div class="credits">AK-47 rig: <a href="https://skfb.ly/6UEL9" target="_blank" rel="noopener">“Ak47” by kursat_sokmen</a>, CC BY 4.0 · Soldier: <a href="https://sketchfab.com/3d-models/soldier-mixamo-379f325184c743f68a07774269eb5c56" target="_blank" rel="noopener">“Soldier (Mixamo)” by Tsaphnat Tsaphnat Mbuyi</a>, CC BY 4.0, on the Mixamo rig and animations from the three.js examples</div>
@@ -234,6 +243,6 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
 </div>
 
 <script>window.DEADWEIGHT_SELFHOST = true;</script>
-<script type="module" src="game.js?v=285fb8da4b76"></script>
+<script type="module" src="game.js?v=c21164b067e4"></script>
 
 </body></html>
