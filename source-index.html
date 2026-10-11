@@ -78,6 +78,10 @@ button.small-btn:focus-visible{outline:2px solid var(--brass)}
 @keyframes rec{50%{opacity:0}}
 .camvig{display:none;position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,#000a 115%)}
 .hud.bodycam .camstamp{display:block}
+.voicebox{position:absolute;left:28px;bottom:calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:3px;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.voicebox .tx{color:var(--dim)}
+.voicebox .tx.on{color:#e0402c}
+.voicebox .talk{color:var(--fg);background:#0007;padding:2px 6px;border-left:2px solid var(--brass);text-transform:none;letter-spacing:.04em}
 .hud.bodycam.lofi .camvig{display:block}
 .hud.bodycam .tr{top:calc(66px + env(safe-area-inset-top,0px))}
 .hud.bodycam .bl,.hud.bodycam .br{opacity:0;transition:opacity .8s}
@@ -128,7 +132,8 @@ input[type=range]{accent-color:var(--brass);width:160px}
 select{font-family:var(--f-mono);font-size:12px;background:#0d1014;color:var(--fg);border:1px solid #3b414b;padding:4px 8px}
 select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 input[type=checkbox]{accent-color:var(--brass);width:16px;height:16px;margin:0}
-.row label[for=rmbtoggle],.row label[for=bodycam]{cursor:pointer}
+.row label[for=rmbtoggle],.row label[for=bodycam],.row label[for=voiceon]{cursor:pointer}
+input[type=range]#voicevol{width:110px}
 button#go{font-family:var(--f-display);font-weight:900;font-size:26px;letter-spacing:.06em;background:var(--brass);color:#16120a;border:0;padding:10px 26px;cursor:pointer}
 button#go:disabled{background:#3a3d42;color:#8d9089;cursor:progress}
 button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
@@ -164,6 +169,7 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
   <div class="breath" id="breath"><i></i></div>
   <div class="scope" id="scope" hidden><i class="sh"></i><i class="sv"></i><i class="sd"></i></div>
   <div class="hitmark" id="hitmark"></div>
+  <div class="voicebox" id="voicebox" aria-live="polite"></div>
   <div class="board" id="board" hidden><table><thead><tr><th>Player</th><th>K</th><th>D</th></tr></thead><tbody id="boardrows"></tbody></table></div>
   <div class="msg" id="msg"></div>
 </div>
@@ -207,6 +213,8 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <div class="row"><label for="quality">Graphics</label><select id="quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
         <div class="row"><input type="checkbox" id="rmbtoggle"><label for="rmbtoggle">Right-click toggles aim (touchpad)</label></div>
         <div class="row"><input type="checkbox" id="bodycam"><label for="bodycam">Bodycam: lens, motion blur, weighted aim</label></div>
+        <div class="row"><input type="checkbox" id="voiceon"><label for="voiceon" id="voicelabel">Voice chat: hold T to talk</label></div>
+        <div class="row"><label for="voicemode">Voices</label><select id="voicemode"><option value="proximity">Proximity (3D)</option><option value="radio">Radio (whole room)</option></select><label for="voicevol">Volume</label><input type="range" id="voicevol" min="0" max="2" step="0.05" value="1"></div>
       </div>
     </details>
     <details class="fold">
@@ -225,6 +233,7 @@ button#go:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         <div><kbd>Tab</kbd> Scores</div>
         <div><kbd>V</kbd> 3rd person</div>
         <div><kbd>−</kbd><kbd>=</kbd> Remove · add bot</div>
+        <div><kbd>T</kbd> Push to talk</div>
       </div>
     </details>
     <div class="credits">AK-47 rig: <a href="https://skfb.ly/6UEL9" target="_blank" rel="noopener">“Ak47” by kursat_sokmen</a>, CC BY 4.0 · Soldier: <a href="https://sketchfab.com/3d-models/soldier-mixamo-379f325184c743f68a07774269eb5c56" target="_blank" rel="noopener">“Soldier (Mixamo)” by Tsaphnat Tsaphnat Mbuyi</a>, CC BY 4.0, on the Mixamo rig and animations from the three.js examples</div>
@@ -2991,6 +3000,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyC') { game.player.cDown = performance.now(); game.player.cHeld = false; }
     if (e.code === 'KeyX') aimLatch = !aimLatch;
     if (e.code === 'KeyF') firePressed = true;
+    if (e.code === 'KeyT') VOICE.ptt(true);
   }
   keys[e.code] = true;
 });
@@ -2998,6 +3008,7 @@ addEventListener('keyup', e => {
   // tap C = crouch / stand, hold C = prone (handled while held, in PlayerController.input)
   if (e.code === 'KeyC' && keys.KeyC && game.state === 'playing' && !game.player.cHeld) game.player.toggleCrouch();
   if (e.code === 'Tab') hud.board(false);
+  if (e.code === 'KeyT') VOICE.ptt(false);
   keys[e.code] = false;
 });
 addEventListener('wheel', e => { if (game.state === 'playing' && Math.abs(e.deltaY) > 4) game.player.cycleWeapon(e.deltaY > 0 ? 1 : -1); }, { passive: true });
@@ -3005,7 +3016,7 @@ addEventListener('mousedown', e => { if (game.state !== 'playing') return; if (e
 addEventListener('mouseup', e => { if (e.button === 0) lmb = false; if (e.button === 2) rmb = false; });
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { if (document.pointerLockElement === canvas) { mouseDX += e.movementX; mouseDY += e.movementY; } });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; lmb = rmb = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; lmb = rmb = false; VOICE.ptt(false); });
 
 /* =====================================================================
    Player controller: movement intent, view, weapon handling, viewmodel
@@ -3791,6 +3802,7 @@ const NET = {
     r.on('shot', m => this.onShot(m));
     r.on('hit', m => this.onHit(m));
     r.on('death', m => this.onDeath(m));
+    r.on('rtc', m => VOICE.onSignal(m));
     r.onPeers(ch => this.onPeers(ch));
     r.onConnection(c => { this.connected = c; this.status(); });
     this.connected = typeof r.connected === 'function' ? r.connected() : true;
@@ -3804,7 +3816,7 @@ const NET = {
     if (this.room) this.onPeers({ peers: this.room.peers(), joined: [], left: [], updated: [] });
     this.status();
   },
-  leaveRoom() { this.clearPeers(); this.code = null; this.pushPresence(true); this.status(); },
+  leaveRoom() { this.clearPeers(); this.code = null; this.pushPresence(true); this.status(); VOICE.sync(); },
   inMyRoom(m) { const R = this.peers.get(m.peer); return !!R && (m.data?.rm ?? R.rm) === this.code; },
   clearPeers() { for (const R of this.peers.values()) this.dropPeer(R); this.peers.clear(); },
   dropPeer(R) { this.removeChar(R); if (R.bots) { for (const E of R.bots.values()) this.removeChar(E); R.bots.clear(); } },
@@ -3820,7 +3832,7 @@ const NET = {
       if (!this.code || pr.rm !== this.code) { const R = this.peers.get(p.peer); if (R) { this.dropPeer(R); this.peers.delete(p.peer); } continue; }
       let R = this.peers.get(p.peer);
       if (!R) { R = { peer: p.peer, char: null, snaps: [], name: 'Player', k: 0, d: 0, on: false }; this.peers.set(p.peer, R); }
-      R.name = this.cleanName(pr.n); R.k = +pr.k || 0; R.d = +pr.d || 0; R.rm = pr.rm;
+      R.name = this.cleanName(pr.n); R.k = +pr.k || 0; R.d = +pr.d || 0; R.rm = pr.rm; R.vc = pr.vc === 1;
       R.on = pr.on === 1 && Array.isArray(pr.p) && pr.p.length === 3 && pr.p.every(Number.isFinite);
       this.syncBots(R, R.on ? pr.B : null);
       if (!R.on) { if (R.char) this.removeChar(R); continue; }
@@ -3832,6 +3844,7 @@ const NET = {
       }
     }
     this.status();
+    VOICE.sync();
   },
   /* a peer's bots ride in its presence as compact rows: [id, x, y, z, vx, vz, yaw, pitch, stance, lean, alive, kills, deaths] */
   syncBots(R, rows) {
@@ -3906,7 +3919,7 @@ const NET = {
         rm: this.code || null, on: playing ? 1 : 0, n: this.name, k: game.kills, d: game.deaths,
         p: [r2(c.curPos.x), r2(c.curPos.y), r2(c.curPos.z)], v: [r2(c.vel.x), 0, r2(c.vel.z)],
         y: Math.round(c.yaw * 1000) / 1000, pt: Math.round(c.pitch * 1000) / 1000, st: c.stance, ln: r2(c.lean || 0),
-        a: c.alive ? 1 : 0, w: c.weaponId,
+        a: c.alive ? 1 : 0, w: c.weaponId, vc: VOICE.enabled ? 1 : 0,
         B: playing ? game.bots.map(b => { const q = b.char; return [b.id, r2(q.curPos.x), r2(q.curPos.y), r2(q.curPos.z), r2(q.vel.x), r2(q.vel.z), Math.round(q.yaw * 1000) / 1000, Math.round(q.pitch * 1000) / 1000, Math.max(0, BOT_STANCE.indexOf(q.stance)), r2(q.lean || 0), q.alive ? 1 : 0, b.k, b.d]; }) : [],
       }).catch(() => {});
     }
@@ -4001,6 +4014,150 @@ const NET = {
 };
 
 /* =====================================================================
+   Voice chat: push-to-talk WebRTC audio between players in the same room.
+   - signalling rides the room's events (topic 'rtc', addressed with `to`);
+     the peer with the smaller id makes the offer, so two peers never both do
+   - one RTCPeerConnection per pair (a mesh: fine at the 16-player room cap)
+   - the mic track stays attached and is only enabled while T is held, so
+     talking never needs renegotiation
+   - proximity (default): each voice is a 3D source at the speaker's head;
+     radio: everyone in the room, band-limited like a handset. A listener's
+     choice: it only changes how you hear others.
+   - voices get their own bus straight to the speakers, so gunfire (which
+     ducks the game mix through its compressor) never drowns them
+   ===================================================================== */
+const VOICE_ICE = [{ urls: 'stun:stun.l.google.com:19302' }];   // public STUN; add a TURN server for players behind strict NATs
+const VOICE = {
+  enabled: false, wanted: false, mode: 'proximity', volume: 1, tx: false, mic: null, track: null, bus: null,
+  conns: new Map(),   // peer -> { pc, pending ICE, media element, audio nodes, talking }
+  supported: () => !!(window.RTCPeerConnection && navigator.mediaDevices?.getUserMedia && window.isSecureContext),
+  async enable(on) {
+    if (!on) {
+      this.enabled = false; this.closeAll();
+      this.mic?.getTracks().forEach(t => t.stop()); this.mic = this.track = null;
+      NET.pushPresence(true); hud.voice(); return true;
+    }
+    if (this.enabled) return true;
+    if (!this.supported()) { hud.msg('Voice chat needs HTTPS and a microphone', 3); return false; }
+    Sound.init();
+    try { this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
+    catch (e) { hud.msg('Microphone blocked: voice chat is off', 3); return false; }
+    this.track = this.mic.getAudioTracks()[0]; this.track.enabled = this.tx;
+    this.enabled = true; this.ensureBus();
+    NET.pushPresence(true); this.sync(); hud.voice();
+    return true;
+  },
+  ensureBus() {
+    const ctx = Sound.ctx; if (!ctx || this.bus) return;
+    this.bus = ctx.createGain(); this.bus.gain.value = this.volume; this.bus.connect(ctx.destination);
+  },
+  ptt(on) {
+    if (this.tx === on) return;
+    this.tx = on; if (this.track) this.track.enabled = on && this.enabled;
+    hud.voice();
+  },
+  // connect to every voice-enabled player in our room, drop everyone else
+  sync() {
+    const want = new Set();
+    if (this.enabled && NET.active) for (const R of NET.peers.values()) if (R.vc && R.rm === NET.code) want.add(R.peer);
+    for (const peer of [...this.conns.keys()]) if (!want.has(peer)) this.close(peer, true);
+    for (const peer of want) if (!this.conns.has(peer) && NET.me && NET.me < peer) this.call(peer).catch(e => console.warn('voice: call failed', e));
+  },
+  make(peer) {
+    const pc = new RTCPeerConnection({ iceServers: VOICE_ICE });
+    const C = { pc, peer, pending: [], talkT: 0, talking: false };
+    this.conns.set(peer, C);
+    pc.addTrack(this.track, this.mic);
+    pc.onicecandidate = e => { if (e.candidate) this.send(peer, { k: 'ice', c: e.candidate.toJSON() }); };
+    pc.ontrack = e => this.attach(C, e.streams[0] || new MediaStream([e.track]));
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' && this.conns.get(peer) === C) { this.close(peer, false); setTimeout(() => this.sync(), 1500); }
+    };
+    return C;
+  },
+  async call(peer) {
+    const C = this.make(peer);
+    await C.pc.setLocalDescription(await C.pc.createOffer());
+    this.send(peer, { k: 'offer', sdp: C.pc.localDescription.sdp });
+  },
+  async onSignal(m) {
+    const d = m.data || {};
+    if (m.sameTab || d.to !== NET.me || !NET.inMyRoom(m) || !this.enabled) return;
+    const peer = m.peer;
+    try {
+      if (d.k === 'offer' && typeof d.sdp === 'string') {
+        if (this.conns.has(peer)) this.close(peer, false);     // they reconnected: start over
+        const C = this.make(peer);
+        await C.pc.setRemoteDescription({ type: 'offer', sdp: d.sdp });
+        for (const c of C.pending.splice(0)) await C.pc.addIceCandidate(c).catch(() => {});
+        await C.pc.setLocalDescription(await C.pc.createAnswer());
+        this.send(peer, { k: 'answer', sdp: C.pc.localDescription.sdp });
+      } else if (d.k === 'answer' && typeof d.sdp === 'string') {
+        const C = this.conns.get(peer); if (!C || C.pc.signalingState !== 'have-local-offer') return;
+        await C.pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
+        for (const c of C.pending.splice(0)) await C.pc.addIceCandidate(c).catch(() => {});
+      } else if (d.k === 'ice' && d.c && typeof d.c === 'object') {
+        const C = this.conns.get(peer); if (!C) return;
+        if (C.pc.remoteDescription) await C.pc.addIceCandidate(d.c).catch(() => {}); else C.pending.push(d.c);
+      } else if (d.k === 'bye') this.close(peer, false);
+    } catch (e) { console.warn('voice: signalling with', peer, 'failed', e); }
+  },
+  send(peer, msg) { if (NET.active) NET.room.emit('rtc', { rm: NET.code, to: peer, ...msg }).catch(() => {}); },
+  attach(C, stream) {
+    const ctx = Sound.ctx; if (!ctx) return; this.ensureBus();
+    if (C.nodes) { try { C.nodes.src.disconnect(); C.nodes.g.disconnect(); C.nodes.pan.disconnect(); } catch (e) {} }
+    // Chrome only feeds a remote WebRTC stream into Web Audio while a media element is also playing it
+    C.el ||= new Audio(); C.el.muted = true; C.el.srcObject = stream; C.el.play().catch(() => {});
+    const src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    const g = ctx.createGain();
+    const pan = new PannerNode(ctx, { panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 3, maxDistance: 120, rolloffFactor: 1.15 });
+    src.connect(an); src.connect(hp); hp.connect(lp); lp.connect(g);
+    C.nodes = { src, an, hp, lp, g, pan, buf: new Float32Array(512) };
+    this.route(C);
+  },
+  route(C) {
+    const N = C.nodes; if (!N) return;
+    try { N.g.disconnect(); N.pan.disconnect(); } catch (e) {}
+    const radio = this.mode === 'radio';
+    N.hp.frequency.value = radio ? 320 : 80; N.lp.frequency.value = radio ? 3200 : 12000;
+    if (radio) N.g.connect(this.bus); else { N.g.connect(N.pan); N.pan.connect(this.bus); }
+  },
+  setMode(m) { this.mode = m === 'radio' ? 'radio' : 'proximity'; for (const C of this.conns.values()) this.route(C); hud.voice(); },
+  setVolume(v) { this.volume = v; if (this.bus) this.bus.gain.value = v; },
+  // per frame: voices follow their speakers' heads; detect who is talking
+  update(dt) {
+    let changed = false;
+    for (const C of this.conns.values()) {
+      const N = C.nodes; if (!N) continue;
+      if (this.mode === 'radio') N.g.gain.value = 1.2;
+      else {
+        const ch = NET.peers.get(C.peer)?.char;
+        // not in the world (paused, between rooms): keep them audible right beside us, a little quieter
+        const at = ch ? (ch.alive ? ch.eye : ch.root.position) : (Sound.lp || camera.position);
+        if (Number.isFinite(at.x)) { N.pan.positionX.value = at.x; N.pan.positionY.value = at.y; N.pan.positionZ.value = at.z; }
+        N.g.gain.value = ch ? 1 : 0.5;
+      }
+      N.an.getFloatTimeDomainData(N.buf);
+      let s = 0; for (const v of N.buf) s += v * v;
+      C.talkT = Math.sqrt(s / N.buf.length) > 0.01 ? 0.35 : Math.max(0, C.talkT - dt);
+      if ((C.talkT > 0) !== C.talking) { C.talking = C.talkT > 0; changed = true; }
+    }
+    if (changed) hud.voice();
+  },
+  close(peer, sayBye) {
+    const C = this.conns.get(peer); if (!C) return;
+    if (sayBye) this.send(peer, { k: 'bye' });
+    try { C.pc.close(); } catch (e) {}
+    if (C.nodes) { try { C.nodes.src.disconnect(); C.nodes.g.disconnect(); C.nodes.pan.disconnect(); } catch (e) {} }
+    if (C.el) C.el.srcObject = null;
+    this.conns.delete(peer); hud.voice();
+  },
+  closeAll() { for (const peer of [...this.conns.keys()]) this.close(peer, true); },
+};
+
+/* =====================================================================
    HUD
    ===================================================================== */
 const hud = {
@@ -4043,6 +4200,14 @@ const hud = {
       i.style.transform = `rotate(${-ang}rad)`; i.style.opacity = 1; i.style.transition = 'opacity 1.4s';
       $('dmgdir').append(i); requestAnimationFrame(() => requestAnimationFrame(() => i.style.opacity = 0)); setTimeout(() => i.remove(), 1500);
     }
+  },
+  // transmit state and who is talking
+  voice() {
+    const el = $('voicebox'); if (!el) return;
+    el.textContent = '';
+    const row = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; el.append(d); };
+    if (VOICE.enabled) row(VOICE.tx ? 'tx on' : 'tx', `● ${VOICE.tx ? 'TX' : 'Voice'} · ${VOICE.mode === 'radio' ? 'radio' : 'proximity'}`);
+    for (const C of VOICE.conns.values()) if (C.talking) row('talk', '▸ ' + (NET.peers.get(C.peer)?.name || 'Player'));
   },
   update(dt) {
     if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) $('msg').textContent = ''; }
@@ -4236,6 +4401,7 @@ const game = {
     this.flashLevel = Math.max(0, this.flashLevel - dt * 90);
     this.envUpdate(dt);
     Sound.listener(camera);
+    VOICE.update(dt);
     hud.update(dt);
   },
 };
@@ -4262,6 +4428,19 @@ $('rmbtoggle').addEventListener('change', applyToggle); applyToggle();
 $('bodycam').checked = LENS.on;
 const applyBodycam = () => { LENS.on = $('bodycam').checked; $('hud').classList.toggle('bodycam', LENS.on); P.prevVP = null; game.player.snapCam = true; try { localStorage.setItem('dw-bodycam', LENS.on ? '1' : '0'); } catch (e) {} };
 $('bodycam').addEventListener('change', applyBodycam); applyBodycam();
+{
+  const cb = $('voiceon'), md = $('voicemode'), vol = $('voicevol');
+  try { VOICE.wanted = localStorage.getItem('dw-voice') === '1'; md.value = localStorage.getItem('dw-voice-mode') || 'proximity'; vol.value = localStorage.getItem('dw-voice-vol') || '1'; } catch (e) {}
+  VOICE.mode = md.value === 'radio' ? 'radio' : 'proximity'; VOICE.volume = +vol.value || 1;
+  if (!VOICE.supported()) { cb.disabled = true; $('voicelabel').textContent = 'Voice chat needs HTTPS (or localhost) and a microphone'; }
+  cb.checked = VOICE.wanted && VOICE.supported();
+  cb.addEventListener('change', async () => {
+    const ok = await VOICE.enable(cb.checked); if (cb.checked && !ok) cb.checked = false;
+    VOICE.wanted = cb.checked; try { localStorage.setItem('dw-voice', cb.checked ? '1' : '0'); } catch (e) {}
+  });
+  md.addEventListener('change', () => { VOICE.setMode(md.value); try { localStorage.setItem('dw-voice-mode', md.value); } catch (e) {} });
+  vol.addEventListener('input', () => { VOICE.setVolume(+vol.value); try { localStorage.setItem('dw-voice-vol', vol.value); } catch (e) {} });
+}
 try { NET.name = NET.cleanName(localStorage.getItem('dw-callsign') || ''); } catch (e) {}
 if (NET.name === 'Player') NET.name = 'Ghost-' + ((Math.random() * 90 + 10) | 0);
 $('callsign').value = NET.name;
@@ -4312,6 +4491,7 @@ function enterRoom(code) {   // works before the connection is up: the choice is
 }
 function startPlaying() {
   Sound.init(); Sound.startAmbience();
+  if (VOICE.wanted && !VOICE.enabled) VOICE.enable(true).then(ok => { $('voiceon').checked = ok; });
   const r = canvas.requestPointerLock?.();
   if (r && r.catch) r.catch(() => {});
   game.state = 'playing';
@@ -4320,7 +4500,7 @@ function startPlaying() {
 goBtn.addEventListener('click', () => enterRoom(NET.code || 'public'));
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement !== canvas && game.state === 'playing') {
-    game.state = 'paused'; lmb = rmb = false; for (const k in keys) keys[k] = false;
+    game.state = 'paused'; lmb = rmb = false; for (const k in keys) keys[k] = false; VOICE.ptt(false);
     goBtn.textContent = 'Resume'; $('playhint').textContent = 'Paused · or pick another room';
     $('overlay').hidden = false;
   }
@@ -4345,5 +4525,5 @@ function loop() {
   renderFrame(dt, game.view === 'fp' && game.player.char.alive);
 }
 loop();
-window.__game = game; window.NET = NET; game.colliderMeta = colliderMeta; game.cam = camera; game.bullets = bullets; game.NAV = NAV; game.ROOF_SPOTS = ROOF_SPOTS; game.renderer = renderer; game.renderFrame = renderFrame; game.Sound = Sound; game.world = world; game.RAPIER = RAPIER; // handy for debugging in the console
+window.__game = game; window.NET = NET; game.colliderMeta = colliderMeta; game.cam = camera; game.bullets = bullets; game.NAV = NAV; game.ROOF_SPOTS = ROOF_SPOTS; game.renderer = renderer; game.renderFrame = renderFrame; game.Sound = Sound; game.VOICE = VOICE; game.world = world; game.RAPIER = RAPIER; // handy for debugging in the console
 </script>

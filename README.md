@@ -21,6 +21,13 @@ on the start screen, or `-` / `=` in game): your browser runs them, they fight e
 
 To rebuild `public/` after editing `source-index.html`: `npm install && npm run build`.
 
+**Voice chat** (Settings → *Voice chat*, then hold `T` to talk): players in the same room talk
+peer to peer over WebRTC; the game server only relays the connection set-up. Voices are 3D at
+the speaker's position by default (*Proximity*), or everyone in the room as a radio (*Radio*).
+Browsers only allow the microphone on HTTPS (or `localhost`), so deploy behind TLS. Connections
+use Google's public STUN server; players behind strict NATs may also need a TURN server, which
+you can add to `VOICE_ICE` in `source-index.html`. Headphones avoid echo.
+
 ### Docker
 
 ```bash

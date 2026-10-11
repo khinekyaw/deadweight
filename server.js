@@ -13,7 +13,8 @@ const PORT = +process.env.PORT || 8080;
 const PUBLIC = path.join(__dirname, 'public');
 const MAX_MSG = 4096;                 // bytes per presence object / event payload
 const RATE = { perSec: 60, burst: 120 };  // messages per client (a player plus the bots they run)
-const TOPICS = new Set(['shot', 'hit', 'death']);
+const TOPICS = new Set(['shot', 'hit', 'death', 'rtc']);   // rtc: voice-chat signalling (offers, answers, ICE candidates)
+const MAX_RTC = 12000;                // an SDP offer can outgrow MAX_MSG
 const NAME_RE = /^[a-z0-9][a-z0-9_.-]{0,47}$/;
 const MAX_PER_ROOM = +process.env.MAX_PER_ROOM || 16;
 
@@ -88,7 +89,7 @@ wss.on('connection', (ws, req) => {
       }
       case 'emit': {
         if (!client.rooms.has(room) || !TOPICS.has(m.topic)) return;
-        if (JSON.stringify(m.data ?? null).length > MAX_MSG) return;
+        if (JSON.stringify(m.data ?? null).length > (m.topic === 'rtc' ? MAX_RTC : MAX_MSG)) return;
         return broadcast(room, { t: 'emit', room, peer: client.peer, topic: m.topic, data: m.data ?? null }, client);
       }
       case 'leave': return leave(client, room);
